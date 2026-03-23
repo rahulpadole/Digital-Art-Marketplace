@@ -273,17 +273,15 @@ export default function Profile() {
         >
           Purchases
         </button>
-        {userRole === 'artist' && (
-          <button 
-            onClick={() => setActiveTab('sales')}
-            style={{ 
-              padding: '1rem', background: 'none', border: 'none', color: activeTab === 'sales' ? 'var(--primary-accent)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'sales' ? '2px solid var(--primary-accent)' : 'none', cursor: 'pointer', fontWeight: '600'
-            }}
-          >
-            Sales
-          </button>
-        )}
+        <button 
+          onClick={() => setActiveTab('sales')}
+          style={{ 
+            padding: '1rem', background: 'none', border: 'none', color: activeTab === 'sales' ? 'var(--primary-accent)' : 'var(--text-secondary)',
+            borderBottom: activeTab === 'sales' ? '2px solid var(--primary-accent)' : 'none', cursor: 'pointer', fontWeight: '600'
+          }}
+        >
+          Sales
+        </button>
       </div>
 
       {loading ? (
