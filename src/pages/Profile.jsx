@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
@@ -258,8 +258,8 @@ export default function Profile() {
         <button 
           onClick={() => setActiveTab('collection')}
           style={{ 
-            padding: '1rem', background: 'none', border: 'none', color: activeTab === 'collection' ? '#ED8F03' : 'var(--text-secondary)',
-            borderBottom: activeTab === 'collection' ? '2px solid #ED8F03' : 'none', cursor: 'pointer', fontWeight: '600'
+            padding: '1rem', background: 'none', border: 'none', color: activeTab === 'collection' ? 'var(--primary-accent)' : 'var(--text-secondary)',
+            borderBottom: activeTab === 'collection' ? '2px solid var(--primary-accent)' : 'none', cursor: 'pointer', fontWeight: '600'
           }}
         >
           My Collection
@@ -289,7 +289,7 @@ export default function Profile() {
       ) : activeTab === 'artworks' || activeTab === 'collection' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
           {artworks.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)' }}>No artworks found in this tab.</p>
+            <p style={{ color: 'var(--text-secondary)', gridColumn: '1/-1', textAlign: 'center', padding: '2rem' }}>No artworks found in this tab.</p>
           ) : (
             artworks.map(art => (
               <div key={art.id} style={{ position: 'relative' }}>
@@ -297,13 +297,28 @@ export default function Profile() {
                 {activeTab === 'artworks' && (
                   <button onClick={() => handleDelete(art.id)} className="btn-delete" style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10 }}>✕</button>
                 )}
+                {activeTab === 'collection' && (
+                  <a 
+                    href={art.imageUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    style={{ 
+                      position: 'absolute', bottom: '10px', left: '10px', right: '10px', 
+                      padding: '0.4rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.6)',
+                      backdropFilter: 'blur(4px)', borderColor: 'var(--primary-accent)'
+                    }}
+                  >
+                    📥 Download High-Res
+                  </a>
+                )}
               </div>
             ))
           )}
         </div>
       ) : (
-        <div className="glass" style={{ padding: '0' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="glass" style={{ padding: '0', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--glass-border)', textAlign: 'left' }}>
                 <th style={{ padding: '1rem' }}>Artwork</th>
@@ -315,45 +330,53 @@ export default function Profile() {
             </thead>
             <tbody>
               {orders.length === 0 ? (
-                <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No transactions yet.</td></tr>
+                <tr><td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No transactions yet.</td></tr>
               ) : (
                 orders.map(order => (
                   <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '1rem' }}>{order.artworkTitle}</td>
-                    <td style={{ padding: '1rem' }}>{activeTab === 'purchases' ? order.sellerName : order.buyerName}</td>
-                    <td style={{ padding: '1rem', color: 'var(--primary-accent)' }}>₹{order.price}</td>
                     <td style={{ padding: '1rem' }}>
-                      <span style={{ 
-                        padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.8rem',
-                        background: order.status === 'pending' ? 'rgba(237, 143, 3, 0.2)' : 'rgba(102, 252, 241, 0.1)',
-                        color: order.status === 'pending' ? '#ED8F03' : 'var(--primary-accent)'
+                      <div style={{ fontWeight: '500' }}>{order.artworkTitle}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>ID: {order.id.substring(0,6)}</div>
+                    </td>
+                    <td style={{ padding: '1rem' }}>{activeTab === 'purchases' ? order.sellerName : order.buyerName}</td>
+                    <td style={{ padding: '1rem', color: 'var(--primary-accent)', fontWeight: '600' }}>₹{order.price}</td>
+                    <td style={{ padding: '1rem' }}>
+                      <span className="badge" style={{ 
+                        background: order.status === 'pending' ? 'rgba(237, 143, 3, 0.15)' : 
+                                    order.status === 'rejected' ? 'rgba(255, 75, 75, 0.15)' : 'rgba(102, 252, 241, 0.15)',
+                        color: order.status === 'pending' ? '#ED8F03' : 
+                               order.status === 'rejected' ? 'var(--error)' : 'var(--primary-accent)',
+                        border: `1px solid ${order.status === 'pending' ? 'rgba(237, 143, 3, 0.3)' : 
+                                              order.status === 'rejected' ? 'rgba(255, 75, 75, 0.3)' : 'rgba(102, 252, 241, 0.3)'}`
                       }}>
-                        {order.status === 'pending' ? 'Pending Review' : 'Completed'}
+                        {order.status === 'pending' ? 'Pending Review' : 
+                         order.status === 'rejected' ? 'Rejected' : 'Completed'}
                       </span>
                     </td>
                     <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
                       {order.status === 'pending' && activeTab === 'sales' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>UTR: {order.utr}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>UTR: <code style={{color: '#fff'}}>{order.utr}</code></span>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button 
                               onClick={() => handleConfirmPayment(order)}
-                              style={{ flex: 1, background: '#27ae60', border: 'none', color: '#fff', padding: '0.4rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
+                              className="btn-verify"
+                              style={{ flex: 1, background: '#27ae60', border: 'none', color: '#fff', padding: '0.4rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem' }}
                             >
                               Verify
                             </button>
                             <button 
                               onClick={() => handleRejectPayment(order)}
-                              style={{ flex: 1, background: 'var(--error)', border: 'none', color: '#fff', padding: '0.4rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
+                              style={{ flex: 1, background: 'var(--error)', border: 'none', color: '#fff', padding: '0.4rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem' }}
                             >
                               Reject
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                          TXID: {order.transactionId?.substring(0, 8)}...<br/>
-                          {order.purchasedAt?.toDate?.().toLocaleDateString()}
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                          {order.transactionId && <div>TXID: {order.transactionId.substring(0, 12)}...</div>}
+                          <div>{order.purchasedAt?.toDate ? order.purchasedAt.toDate().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent'}</div>
                         </div>
                       )}
                     </td>
@@ -363,7 +386,7 @@ export default function Profile() {
             </tbody>
           </table>
         </div>
-      )}
+      ) < /div>}
     </div>
   );
 }
